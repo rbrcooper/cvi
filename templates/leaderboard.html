@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Medieval European Quest - Hall of Fame</title>
+    <link href="https://fonts.googleapis.com/css2?family=MedievalSharp&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'MedievalSharp', cursive;
+            background-color: #f4e4bc;
+            color: #2c1810;
+            margin: 0;
+            padding: 20px;
+            background-image: url('/static/parchment.jpg');
+            background-size: cover;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.2);
+            text-align: center;
+        }
+        h1 {
+            color: #8b4513;
+            font-size: 2.5em;
+            margin-bottom: 20px;
+        }
+        .leaderboard {
+            margin: 30px 0;
+            background: rgba(255, 255, 255, 0.8);
+            padding: 20px;
+            border-radius: 10px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        th, td {
+            padding: 15px;
+            text-align: left;
+            border-bottom: 2px solid #8b4513;
+        }
+        th {
+            background-color: rgba(139, 69, 19, 0.1);
+            color: #8b4513;
+        }
+        tr:hover {
+            background-color: rgba(139, 69, 19, 0.05);
+        }
+        .rank {
+            font-weight: bold;
+            color: #8b4513;
+        }
+        button {
+            background-color: #8b4513;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-family: 'MedievalSharp', cursive;
+            font-size: 1.2em;
+            margin: 10px;
+            transition: background-color 0.3s;
+            text-decoration: none;
+            display: inline-block;
+        }
+        button:hover {
+            background-color: #654321;
+        }
+        .scroll {
+            margin-top: 20px;
+            font-style: italic;
+            color: #8b4513;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Hall of Fame</h1>
+        <div class="leaderboard">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Rank</th>
+                        <th>Starting City</th>
+                        <th>Moves</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for score in scores %}
+                    <tr>
+                        <td class="rank">#{{ loop.index }}</td>
+                        <td>{{ score.city }}</td>
+                        <td>{{ score.moves }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <a href="{{ url_for('index') }}"><button>Begin New Quest</button></a>
+        <p class="scroll">* May the tales of your adventures be sung in the halls of legend...</p>
+    </div>
+</body>
+</html>

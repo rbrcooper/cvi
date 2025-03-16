@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Medieval Map</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+    <style>
+        body, html {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+        }
+        #map {
+            height: 100%;
+            width: 100%;
+        }
+        .player-marker {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .player-emoji {
+            font-size: 30px;
+            line-height: 40px;
+            text-align: center;
+        }
+        .chateau-popup {
+            padding: 15px;
+            max-width: 500px;
+            text-align: center;
+        }
+        .chateau-image {
+            width: 100%;
+            max-width: 450px;
+            height: auto;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+        .chateau-popup h3 {
+            margin: 0 0 15px 0;
+            color: #4a4a4a;
+            font-size: 1.4em;
+        }
+        .chateau-popup p {
+            margin: 10px 0;
+            line-height: 1.5;
+            color: #666;
+        }
+        .chateau-popup ul {
+            margin: 15px 0;
+            padding-left: 20px;
+            text-align: left;
+        }
+        .chateau-popup a {
+            color: #0078A8;
+            text-decoration: none;
+            transition: color 0.3s ease;
+        }
+        .chateau-popup a:hover {
+            color: #005580;
+            text-decoration: underline;
+        }
+        .chateau-custom-popup .leaflet-popup-content-wrapper {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 10px;
+        }
+        .chateau-custom-popup .leaflet-popup-tip {
+            background: rgba(255, 255, 255, 0.95);
+        }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+    <script>
+        // Default position (Paris) if no game state
+        const defaultLat = 48.8566;
+        const defaultLon = 2.3522;
+        
+        // Get player position from game state or use default
+        const playerLat = {{ game_state.player_position[0] if game_state and game_state.player_position else defaultLat }};
+        const playerLon = {{ game_state.player_position[1] if game_state and game_state.player_position else defaultLon }};
+        
+        // Initialize the map
+        const map = L.map('map').setView([playerLat, playerLon], 6);
+        
+        // Add OpenStreetMap tiles
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+
+        // Add player marker
+        const playerMarker = L.marker([playerLat, playerLon], {
+            icon: L.divIcon({
+                className: 'player-marker',
+                html: '<div class="player-emoji">{{ characters[game_state.character].icon if game_state and game_state.character else "🔴" }}</div>',
+                iconSize: [40, 40],
+                iconAnchor: [20, 20]
+            })
+        }).addTo(map);
+
+        // Initialize companion marker
+        let companionMarker = null;
+
+        // Add city markers if game state exists
+        {% if game_state and CITIES %}
+            {% for city_name, city in CITIES.items() %}
+            L.marker([{{ city.coordinates[0] }}, {{ city.coordinates[1] }}], {
+                icon: L.divIcon({
+                    className: 'city-marker',
+                    html: '<div style="background-color: {% if city_name == game_state.current_city %}green{% else %}blue{% endif %}; width: 15px; height: 15px; border-radius: 50%;"></div>',
+                    iconSize: [15, 15]
+                })
+            }).bindPopup('{{ city_name }}').addTo(map);
+            {% endfor %}
+        {% endif %}
+
+        // Initialize markers (hidden initially)
+        var mysteriousMarker = null;
+        var chateauMarker = null;
+
+        // Listen for messages from parent window
+        window.addEventListener('message', function(event) {
+            if (event.data.type === 'updatePosition') {
+                updatePlayerPosition(event.data.lat, event.data.lon);
+            } else if (event.data.type === 'updateCompanions') {
+                // Handle companion updates
+                const companions = event.data.companions;
+                if (companions && companions.includes('🐕 Topsy')) {
+                    if (!companionMarker) {
+                        companionMarker = L.marker([playerLat, playerLon], {
+                            icon: L.divIcon({
+                                className: 'companion-marker',
+                                html: '<div style="font-size: 24px;">🐕</div>',
+                                iconSize: [30, 30],
+                                iconAnchor: [15, 15]
+                            })
+                        }).addTo(map);
+                    }
+                } else if (companionMarker) {
+                    map.removeLayer(companionMarker);
+                    companionMarker = null;
+                }
+            } else if (event.data.type === 'revealMysteriousLocation') {
+                if (event.data.location) {
+                    addMysteriousLocation(event.data.location);
+                }
+            } else if (event.data.type === 'revealChateau') {
+                revealChateau(event.data.location);
+            } else if (event.data.type === 'panMap') {
+                const bounds = map.getBounds();
+                const position = [event.data.position[0], event.data.position[1]];
+                
+                // Check if player is near the bounds
+                const padding = 0.1;  // About 10% of the view
+                const needsPanning = 
+                    position[0] > bounds.getNorth() - padding ||
+                    position[0] < bounds.getSouth() + padding ||
+                    position[1] > bounds.getEast() - padding ||
+                    position[1] < bounds.getWest() + padding;
+                
+                if (needsPanning) {
+                    map.panTo(position);
+                }
+            }
+        });
+
+        // Function to update player position
+        function updatePlayerPosition(lat, lon) {
+            // Update player marker position
+            playerMarker.setLatLng([lat, lon]);
+            
+            // Update companion position (slightly behind player)
+            if (companionMarker) {
+                // Calculate position slightly behind player (about 20 pixels)
+                const offset = 0.0005; // Small offset in coordinates
+                companionMarker.setLatLng([lat - offset, lon - offset]);
+            }
+            
+            // Optional: Pan map to keep player in view
+            const bounds = map.getBounds();
+            const padding = 0.1;  // About 10% of the view
+            const needsPanning = 
+                lat > bounds.getNorth() - padding ||
+                lat < bounds.getSouth() + padding ||
+                lon > bounds.getEast() - padding ||
+                lon < bounds.getWest() + padding;
+            
+            if (needsPanning) {
+                map.panTo([lat, lon]);
+            }
+        }
+
+        // Function to add mysterious location
+        function addMysteriousLocation(location) {
+            if (mysteriousMarker) {
+                mysteriousMarker.remove();
+            }
+            mysteriousMarker = L.marker(location, {
+                icon: L.divIcon({
+                    className: 'mysterious-marker',
+                    html: '<div style="font-size: 40px; line-height: 40px; text-align: center;">❓</div>',
+                    iconSize: [40, 40],
+                    iconAnchor: [20, 20]
+                })
+            }).addTo(map);
+        }
+
+        // Function to reveal chateau
+        function revealChateau(location) {
+            if (mysteriousMarker) {
+                mysteriousMarker.remove();
+            }
+            if (chateauMarker) {
+                chateauMarker.remove();
+            }
+            chateauMarker = L.marker([location[0], location[1]], {
+                icon: L.divIcon({
+                    className: 'chateau-marker',
+                    html: '<div style="font-size: 30px; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; color: gold;">🏰</div>',
+                    iconSize: [30, 30],
+                    iconAnchor: [15, 15]
+                })
+            }).addTo(map);
+        }
+
+        // Function to check location and update markers
+        function checkLocation(lat, lon) {
+            fetch(`/check_location?lat=${lat}&lon=${lon}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.show_mysterious) {
+                        addMysteriousLocation(data.mysterious_location);
+                    }
+                    if (data.show_chateau) {
+                        revealChateau(data.chateau_location);
+                        if (data.show_popup) {
+                            showChateauPopup();
+                        }
+                    }
+                });
+        }
+
+        // Function to show château popup
+        function showChateauPopup() {
+            const popup = L.popup({
+                maxWidth: 500,  // Increased max width to accommodate the image
+                className: 'chateau-custom-popup'  // Custom class for styling
+            })
+                .setLatLng(chateauMarker.getLatLng())
+                .setContent(`
+                    <div class="chateau-popup">
+                        <img src="/static/chateau_mist.jpg" alt="Château in the mist" class="chateau-image">
+                        <h3>Congratulations! You've found the Château!</h3>
+                        <p>Through the morning mist, you see the majestic towers of a Loire Valley château rising before you...</p>
+                        <p>Explore more about this historic location:</p>
+                        <ul>
+                            <li><a href="https://en.wikipedia.org/wiki/Ch%C3%A2teaux_of_the_Loire_Valley" target="_blank">Loire Valley Châteaux</a></li>
+                            <li><a href="https://www.loirevalley-france.co.uk/cultural-heritage/chateaux" target="_blank">Visit Loire Valley</a></li>
+                        </ul>
+                    </div>
+                `)
+                .openOn(map);
+        }
+
+        // Add location check to move function
+        socket.on('update_position', function(data) {
+            updatePosition(data.lat, data.lon);
+            checkLocation(data.lat, data.lon);
+        });
+
+        // Add CSS for enhanced popup styling
+        const style = document.createElement('style');
+        style.textContent = `
+            .chateau-popup {
+                padding: 15px;
+                max-width: 500px;
+                text-align: center;
+            }
+            .chateau-image {
+                width: 100%;
+                max-width: 450px;
+                height: auto;
+                border-radius: 8px;
+                margin-bottom: 15px;
+                box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            }
+            .chateau-popup h3 {
+                margin: 0 0 15px 0;
+                color: #4a4a4a;
+                font-size: 1.4em;
+            }
+            .chateau-popup p {
+                margin: 10px 0;
+                line-height: 1.5;
+                color: #666;
+            }
+            .chateau-popup ul {
+                margin: 15px 0;
+                padding-left: 20px;
+                text-align: left;
+            }
+            .chateau-popup a {
+                color: #0078A8;
+                text-decoration: none;
+                transition: color 0.3s ease;
+            }
+            .chateau-popup a:hover {
+                color: #005580;
+                text-decoration: underline;
+            }
+            .chateau-custom-popup .leaflet-popup-content-wrapper {
+                background: rgba(255, 255, 255, 0.95);
+                border-radius: 10px;
+            }
+            .chateau-custom-popup .leaflet-popup-tip {
+                background: rgba(255, 255, 255, 0.95);
+            }
+        `;
+        document.head.appendChild(style);
+
+        // Add mysterious location if it's already revealed
+        {% if game_state and game_state.mysterious_location_revealed %}
+            addMysteriousLocation({{ MYSTERIOUS_LOCATION }});
+        {% endif %}
+    </script>
+</body>
+</html> 
