@@ -2,6 +2,7 @@ from flask import Flask, render_template, request, redirect, url_for, session, f
 import folium
 from geopy.distance import geodesic
 import os
+import uuid
 from game_content import (
     CITIES, get_random_event, check_riddle_answer, get_next_city,
     get_city_description, get_city_riddle, RANDOM_EVENTS
@@ -13,8 +14,23 @@ from game_mechanics import (
 import random
 
 app = Flask(__name__)
-app.secret_key = "your_secret_key"
-app.config['SECRET_KEY'] = "your_secret_key"
+# Use environment variable for secret key or generate a random one
+app.secret_key = os.environ.get('FLASK_SECRET_KEY', str(uuid.uuid4()))
+app.config['SESSION_COOKIE_SECURE'] = True
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['PERMANENT_SESSION_LIFETIME'] = 3600  # 1 hour session lifetime
+
+# Error handler for 500 errors
+@app.errorhandler(500)
+def internal_error(error):
+    # Clear the session if it might be corrupted
+    session.clear()
+    return render_template('error.html', error=str(error)), 500
+
+# Error handler for 404 errors
+@app.errorhandler(404)
+def not_found_error(error):
+    return render_template('error.html', error="Page not found"), 404
 
 # Constants for mysterious location and château
 MYSTERIOUS_LOCATION = [46.8566, 2.3522]  # Center of France
@@ -28,33 +44,41 @@ MOVEMENT_SPEED = 0.1
 CITY_ENTRY_THRESHOLD = 25.0  # Increased from 15.0 to make it easier to trigger
 
 def init_game_state():
-    # Always create a new game state if it doesn't exist or if it's None
-    if "game_state" not in session or session["game_state"] is None:
-        session["game_state"] = {
-            "current_city": None,
-            "moves": 0,
-            "riddles_solved": [],
-            "game_completed": False,
-            "player_position": None,
-            "current_riddle": None,
-            "in_city": False,
-            "companions": [],  # List of player names who completed riddles
-            "character": None,
-            "player_name": None,
-            "score": {
-                "total": 0,
-                "riddles_solved": 0,
-                "efficiency_bonus": 0,
-                "wrong_answers": 0
-            },
-            "achievements": {},
-            "total_distance": 0.0,
-            "last_riddle_moves": 0,
-            "total_cities": len(CITIES),
-            "stamina": 100.0,
-            "wrong_answers": {}
-        }
-        print("Initialized new game state")
+    try:
+        # Always create a new game state if it doesn't exist or if it's None
+        if "game_state" not in session or session["game_state"] is None:
+            session["game_state"] = {
+                "current_city": None,
+                "moves": 0,
+                "riddles_solved": [],
+                "game_completed": False,
+                "player_position": None,
+                "current_riddle": None,
+                "in_city": False,
+                "companions": [],  # List of player names who completed riddles
+                "character": None,
+                "player_name": None,
+                "score": {
+                    "total": 0,
+                    "riddles_solved": 0,
+                    "efficiency_bonus": 0,
+                    "wrong_answers": 0
+                },
+                "achievements": {},
+                "total_distance": 0.0,
+                "last_riddle_moves": 0,
+                "total_cities": len(CITIES),
+                "stamina": 100.0,
+                "wrong_answers": {},
+                "has_died": False,
+                "death_message": ""
+            }
+            print("Initialized new game state")
+    except Exception as e:
+        print(f"Error initializing game state: {str(e)}")
+        session.clear()
+        return False
+    return True
 
 def get_nearest_city(lat, lon):
     """Find the nearest city to the player's position"""
@@ -160,6 +184,18 @@ def move():
         # Update position
         session["game_state"]["player_position"] = [current_lat, current_lon]
         session["game_state"]["moves"] += 1
+        
+        # Check for rare deadly events
+        if not session["game_state"].get("has_died", False):  # Only check if haven't died yet
+            if random.random() < character.deadly_event_chance:
+                session["game_state"]["has_died"] = True
+                session["game_state"]["death_message"] = character.deadly_event
+                return jsonify({
+                    "success": False,
+                    "game_over": True,
+                    "message": f"Oh no! {character.deadly_event}",
+                    "position": [current_lat, current_lon]
+                })
         
         # Update stamina
         stamina_cost = 0.2  # Base stamina cost
