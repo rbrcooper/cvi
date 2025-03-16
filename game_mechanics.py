@@ -10,7 +10,7 @@ class Character:
     riddle_hint_chance: float = 0.0
     event_bonus_chance: float = 0.0
     stamina_bonus: float = 0.0
-    deadly_event_chance: float = 0.0  # Chance of deadly event occurring (1/5 = 0.2)
+    deadly_event_chance: float = 0.0001  # 0.01% chance
     deadly_event: str = ""  # Description of the deadly event
 
 CHARACTERS = {
@@ -19,7 +19,7 @@ CHARACTERS = {
         icon="🥖",
         bonus_description="80% chance of baguette",
         move_multiplier=1.2,
-        deadly_event_chance=0.001,  # 0.01% chance
+        deadly_event_chance=0.0001,  # 0.01% chance
         deadly_event="Admits English cuisine is superior and dies from shame"
     ),
     "scholar": Character(
@@ -29,8 +29,8 @@ CHARACTERS = {
         riddle_hint_chance=-0.50,
         event_bonus_chance=-0.99,
         stamina_bonus=-0.3,
-        deadly_event_chance=0.90,  # 0.03% chance (higher as it's the joke character)
-        deadly_event="Dies of famine"
+        deadly_event_chance=0.1,  # 0.01% chance
+        deadly_event="Dies of famine... c'est la vie!"
     ),
     "horse_rider": Character(
         name="Captin Horse",
@@ -45,8 +45,8 @@ CHARACTERS = {
         icon="👑",
         bonus_description="20% better chance at favorable event outcomes, chance of guillotine is increased",
         event_bonus_chance=0.2,
-        deadly_event_chance=0.001,  # 0.% chance
-        deadly_event="Encounters a peasant uprising and faces the guillotine"
+        deadly_event_chance=0.0001,  # 0.01% chance
+        deadly_event="Vive la révolution! Gets guillotined by angry peasants"
     ),
     "archer": Character(
         name="Techno Goblin",
