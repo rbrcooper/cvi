@@ -62,92 +62,93 @@ CITIES = {
 }
 
 # Random events that can occur during travel
-EVENTS = [
-    Event(
-        title="Storm on the Horizon",
-        description="Dark clouds gather overhead, and thunder rumbles in the distance. The air grows heavy with the promise of a fierce storm.",
-        choices=[
+RANDOM_EVENTS = [
+    {
+        "title": "The Naked Sorcerer",
+        "description": "A mysterious, completely unclothed sorcerer stands before you, holding a smoldering herb in one hand. 'Come, traveler,' he says, 'join me in the enchanted waters and cleanse your soul.'",
+        "choices": [
             {
-                "text": "Seek shelter in a nearby tavern (Rest until morning)",
-                "consequence": "rest",
-                "effect": {"moves": 5, "stamina": 50}  # Lose 5 moves but gain 50 stamina
+                "text": "Embrace the magic and dive in",
+                "effect": {
+                    "stamina": 50,
+                    "reputation": -5
+                }
             },
             {
-                "text": "Press on through the storm",
-                "consequence": "brave",
-                "effect": {"stamina": -30}  # Lose 30 stamina but no time penalty
+                "text": "Politely decline and avert your eyes",
+                "effect": {
+                    "moves": 5,
+                    "wisdom": 10
+                }
             }
         ]
-    ),
-    Event(
-        title="Mysterious Wanderer",
-        description="A cloaked figure approaches, offering to share ancient knowledge of these lands.",
-        choices=[
+    },
+    {
+        "title": "The Alchemists' Festival",
+        "description": "A group of alchemists is holding a grand potion festival. Two particular mixologists stand out—one with wild, untamed hair and another who swears their concoctions get stronger with each attempt.",
+        "choices": [
             {
-                "text": "Stop to listen to their tales",
-                "consequence": "wisdom",
-                "effect": {"moves": 3, "next_riddle_hint": True}  # Lose 3 moves but get hint on next riddle
+                "text": "Try their strongest elixir",
+                "effect": {
+                    "stamina": 40,
+                    "magic": 50,
+                    "balance": -10
+                }
             },
             {
-                "text": "Politely decline and continue your journey",
-                "consequence": "cautious",
-                "effect": {"stamina": 10}  # Small stamina boost for being cautious
+                "text": "Stick to water, just in case",
+                "effect": {
+                    "moves": 5,
+                    "wisdom": 10
+                }
             }
         ]
-    ),
-    Event(
-        title="Bandit Ambush",
-        description="A group of bandits emerges from the shadows, blocking your path!",
-        choices=[
+    },
+    {
+        "title": "The Noble Wedding",
+        "description": "A noble wedding is taking place in a grand castle. The bride and groom are already exchanging vows, but the priest suddenly calls out, 'Wait! Who among you dares to challenge this union?'",
+        "choices": [
             {
-                "text": "Stand and fight",
-                "consequence": "fight",
-                "effect": {"stamina": -40, "score": 100}  # Lose stamina but gain bonus points
+                "text": "Step forward and object dramatically",
+                "effect": {
+                    "reputation": 100,
+                    "stamina": -30
+                }
             },
             {
-                "text": "Attempt to flee",
-                "consequence": "flee",
-                "effect": {"moves": 4, "stamina": -20}  # Lose some moves and stamina
+                "text": "Stay quiet and enjoy the feast",
+                "effect": {
+                    "stamina": 50,
+                    "moves": 3
+                }
             }
         ]
-    ),
-    Event(
-        title="Village Festival",
-        description="You come across a small village celebrating their harvest festival. The aroma of food and sound of music fills the air.",
-        choices=[
+    },
+    {
+        "title": "The Hidden Grove",
+        "description": "In a hidden grove, you find an opulent, steaming bath carved from marble. Two figures lounge within, goblets in hand, laughing as if lost in time. 'Join us, traveler!' one slurs. 'The water's perfect, and the wine never runs dry!'",
+        "choices": [
             {
-                "text": "Join the festivities",
-                "consequence": "festival",
-                "effect": {"moves": 4, "stamina": 40, "score": 50}  # Time penalty but good rewards
+                "text": "Join them for a drink and a soak",
+                "effect": {
+                    "stamina": 60,
+                    "moves": -5
+                }
             },
             {
-                "text": "Continue your quest",
-                "consequence": "focused",
-                "effect": {"moves": -1}  # Small move bonus for staying focused
+                "text": "Refuse and move on before you get trapped too",
+                "effect": {
+                    "moves": 3,
+                    "resistance": 10
+                }
             }
         ]
-    ),
-    Event(
-        title="Ancient Shrine",
-        description="You discover an ancient shrine, its stones covered in mysterious runes.",
-        choices=[
-            {
-                "text": "Stop to meditate",
-                "consequence": "meditate",
-                "effect": {"moves": 2, "stamina": 60}  # Time penalty but major stamina boost
-            },
-            {
-                "text": "Leave it be",
-                "consequence": "ignore",
-                "effect": {"moves": -2}  # Small move bonus
-            }
-        ]
-    )
+    }
 ]
 
-def get_random_event() -> Event:
+def get_random_event():
     """Return a random event from the list of possible events"""
-    return random.choice(EVENTS)
+    return random.choice(RANDOM_EVENTS)
 
 def check_riddle_answer(city_name: str, answer: str) -> bool:
     """Check if the given answer matches the city's riddle answer."""

@@ -19,7 +19,7 @@ CHARACTERS = {
         icon="🥖",
         bonus_description="80% chance of baguette",
         move_multiplier=1.2,
-        deadly_event_chance=0.0001,  # 0.01% chance
+        deadly_event_chance=0.001,  # 0.01% chance
         deadly_event="Admits English cuisine is superior and dies from shame"
     ),
     "scholar": Character(
@@ -29,7 +29,7 @@ CHARACTERS = {
         riddle_hint_chance=-0.50,
         event_bonus_chance=-0.99,
         stamina_bonus=-0.3,
-        deadly_event_chance=0.50,  # 0.03% chance (higher as it's the joke character)
+        deadly_event_chance=0.90,  # 0.03% chance (higher as it's the joke character)
         deadly_event="Dies of famine"
     ),
     "horse_rider": Character(
@@ -41,7 +41,7 @@ CHARACTERS = {
         deadly_event="Becomes too confused and gallops off a cliff in a moment of disorientation"
     ),
     "noble": Character(
-        name="Kind",
+        name="King Louis IX",
         icon="👑",
         bonus_description="20% better chance at favorable event outcomes, chance of guillotine is increased",
         event_bonus_chance=0.2,
@@ -51,9 +51,9 @@ CHARACTERS = {
     "archer": Character(
         name="Techno Goblin",
         icon="👺",
-        bonus_description="Moves 50% faster, stamina is ultimetly impacted",
-        move_multiplier=2.0,
-        stamina_bonus=-0.5,
+        bonus_description="Moves 20% faster, stamina is moderately impacted",
+        move_multiplier=1.2,
+        stamina_bonus=-0.2,
         deadly_event_chance=0.0001,  # 0.01% chance
         deadly_event="Uses up all disco biscuits and falls into eternal sleep"
     )

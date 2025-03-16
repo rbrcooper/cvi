@@ -175,6 +175,14 @@
                 // Calculate position slightly behind player (about 20 pixels)
                 const offset = 0.0005; // Small offset in coordinates
                 companionMarker.setLatLng([lat - offset, lon - offset]);
+                
+                // Random chance for Topsy to bark (5% chance)
+                if (Math.random() < 0.05) {
+                    companionMarker.bindPopup('Bark! 🐕').openPopup();
+                    setTimeout(() => {
+                        companionMarker.closePopup();
+                    }, 2000);
+                }
             }
             
             // Optional: Pan map to keep player in view
@@ -191,7 +199,7 @@
             }
         }
 
-        // Function to add mysterious location
+        // Function to add mysterious location marker
         function addMysteriousLocation(location) {
             if (mysteriousMarker) {
                 mysteriousMarker.remove();
@@ -199,11 +207,19 @@
             mysteriousMarker = L.marker(location, {
                 icon: L.divIcon({
                     className: 'mysterious-marker',
-                    html: '<div style="font-size: 40px; line-height: 40px; text-align: center;">❓</div>',
-                    iconSize: [40, 40],
-                    iconAnchor: [20, 20]
+                    html: '<div style="font-size: 30px; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center;">❓</div>',
+                    iconSize: [30, 30],
+                    iconAnchor: [15, 15]
                 })
             }).addTo(map);
+
+            // Add popup to mysterious marker
+            mysteriousMarker.bindPopup(
+                '<div style="text-align: center; padding: 10px;">' +
+                '<p style="margin: 0; font-style: italic;">' +
+                'Traveler, you must complete the quest before enjoying its fruits. Come back later.' +
+                '</p></div>'
+            );
         }
 
         // Function to reveal chateau
@@ -222,6 +238,25 @@
                     iconAnchor: [15, 15]
                 })
             }).addTo(map);
+
+            // Add popup to chateau marker
+            chateauMarker.bindPopup(
+                '<div class="chateau-popup">' +
+                '<h3>The Hidden Château</h3>' +
+                '<img src="/static/chateau_mist.jpg" alt="Château in the mist" class="chateau-image">' +
+                '<p>Congratulations! You have discovered the mysterious Château de Goudourville!</p>' +
+                '</div>',
+                {
+                    className: 'chateau-custom-popup',
+                    maxWidth: 500
+                }
+            );
+        }
+
+        function showChateauPopup() {
+            if (chateauMarker) {
+                chateauMarker.openPopup();
+            }
         }
 
         // Function to check location and update markers
@@ -239,28 +274,6 @@
                         }
                     }
                 });
-        }
-
-        // Function to show château popup
-        function showChateauPopup() {
-            const popup = L.popup({
-                maxWidth: 500,  // Increased max width to accommodate the image
-                className: 'chateau-custom-popup'  // Custom class for styling
-            })
-                .setLatLng(chateauMarker.getLatLng())
-                .setContent(`
-                    <div class="chateau-popup">
-                        <img src="/static/chateau_mist.jpg" alt="Château in the mist" class="chateau-image">
-                        <h3>Congratulations! You've found the Château!</h3>
-                        <p>Through the morning mist, you see the majestic towers of a Loire Valley château rising before you...</p>
-                        <p>Explore more about this historic location:</p>
-                        <ul>
-                            <li><a href="https://en.wikipedia.org/wiki/Ch%C3%A2teaux_of_the_Loire_Valley" target="_blank">Loire Valley Châteaux</a></li>
-                            <li><a href="https://www.loirevalley-france.co.uk/cultural-heritage/chateaux" target="_blank">Visit Loire Valley</a></li>
-                        </ul>
-                    </div>
-                `)
-                .openOn(map);
         }
 
         // Add location check to move function

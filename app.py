@@ -4,7 +4,7 @@ from geopy.distance import geodesic
 import os
 from game_content import (
     CITIES, get_random_event, check_riddle_answer, get_next_city,
-    get_city_description, get_city_riddle
+    get_city_description, get_city_riddle, RANDOM_EVENTS
 )
 from game_mechanics import (
     CHARACTERS, Score, check_achievements, calculate_efficiency_bonus,
@@ -18,14 +18,14 @@ app.config['SECRET_KEY'] = "your_secret_key"
 
 # Constants for mysterious location and château
 MYSTERIOUS_LOCATION = [46.8566, 2.3522]  # Center of France
-CHATEAU_LOCATION = [47.2184, 0.7059]    # Actual château location
-REVEAL_THRESHOLD = 15.0  # Same as city entry threshold
+CHATEAU_LOCATION = [44.114833, 0.925222]    # Château de Goudourville coordinates
+REVEAL_THRESHOLD = 25.0  # Match the city entry threshold
 
 # Movement speed (in degrees)
 MOVEMENT_SPEED = 0.1
 
 # City entry threshold (in kilometers)
-CITY_ENTRY_THRESHOLD = 15.0
+CITY_ENTRY_THRESHOLD = 25.0  # Increased from 15.0 to make it easier to trigger
 
 def init_game_state():
     # Always create a new game state if it doesn't exist or if it's None
@@ -86,11 +86,11 @@ def index():
         
         if not player_name:
             flash("Please enter your name!", "error")
-            return render_template("index.html", locations=CITIES.keys(), characters=CHARACTERS)
+            return render_template("index.html", locations=CITIES.keys(), characters=CHARACTERS, version="1.1")
         
         if chosen_character not in CHARACTERS:
             flash("Please select a valid character!", "error")
-            return render_template("index.html", locations=CITIES.keys(), characters=CHARACTERS)
+            return render_template("index.html", locations=CITIES.keys(), characters=CHARACTERS, version="1.1")
             
         if chosen_city in CITIES:
             session["game_state"]["current_city"] = chosen_city
@@ -116,7 +116,7 @@ def index():
         else:
             flash("Invalid city selected!", "error")
     
-    return render_template("index.html", locations=CITIES.keys(), characters=CHARACTERS)
+    return render_template("index.html", locations=CITIES.keys(), characters=CHARACTERS, version="1.1")
 
 @app.route("/move", methods=["POST"])
 def move():
@@ -168,6 +168,22 @@ def move():
         # Update position
         session["game_state"]["player_position"] = [current_lat, current_lon]
         session["game_state"]["moves"] += 1
+        session["game_state"]["moves_since_last_event"] += 1
+        
+        # Check for random event (10% chance every 5 moves)
+        if session["game_state"]["moves_since_last_event"] >= 5 and random.random() < 0.1:
+            # Get list of events that haven't been encountered yet
+            available_events = [event for event in RANDOM_EVENTS if event["title"] not in session["game_state"]["events_encountered"]]
+            # If all events have been encountered, reset the list
+            if not available_events:
+                session["game_state"]["events_encountered"] = []
+                available_events = RANDOM_EVENTS
+            
+            new_event = random.choice(available_events)
+            if new_event:
+                session["game_state"]["current_event"] = new_event
+                session["game_state"]["events_encountered"].append(new_event["title"])
+                session["game_state"]["moves_since_last_event"] = 0
         
         # Update stamina
         stamina_cost = 0.2  # Base stamina cost
@@ -194,6 +210,7 @@ def move():
     # Check for mysterious location
     mysterious_location_reached = False
     chateau_revealed = False
+    at_chateau = False
     
     # Check if all cities have been visited
     all_cities_visited = len(session["game_state"]["riddles_solved"]) >= len(CITIES)
@@ -205,6 +222,13 @@ def move():
             mysterious_location_reached = True
             session["game_state"]["chateau_revealed"] = True
             chateau_revealed = True
+            
+        # Check if player is at the château location
+        if session["game_state"].get("chateau_revealed", False):
+            distance_to_chateau = geodesic((current_lat, current_lon), CHATEAU_LOCATION).kilometers
+            if distance_to_chateau < CITY_ENTRY_THRESHOLD:
+                session["game_state"]["at_chateau"] = True
+                at_chateau = True
     
     # Update city status
     if in_city and not session["game_state"]["in_city"]:
@@ -224,23 +248,26 @@ def move():
     
     # Prepare response
     response_data = {
-        "position": session["game_state"]["player_position"],
-        "nearest_city": nearest_city if in_city else None,
+        "success": True,
+        "position": [current_lat, current_lon],
+        "nearest_city": nearest_city,
         "distance": distance_to_city,
-        "in_city": in_city,
-        "current_riddle": session["game_state"]["current_riddle"] if in_city else None,
-        "moves": session["game_state"]["moves"],
-        "mysterious_location_reached": mysterious_location_reached,
-        "mysterious_location_revealed": session["game_state"].get("mysterious_location_revealed", False),
-        "mysterious_location": MYSTERIOUS_LOCATION if session["game_state"].get("mysterious_location_revealed", False) else None,
-        "chateau_revealed": chateau_revealed,
-        "chateau_location": CHATEAU_LOCATION if chateau_revealed else None,
         "stamina": session["game_state"]["stamina"],
         "score": session["game_state"]["score"]["total"],
+        "companions": session["game_state"]["companions"],
+        "mysterious_location_revealed": session["game_state"].get("mysterious_location_revealed", False),
+        "mysterious_location": MYSTERIOUS_LOCATION if session["game_state"].get("mysterious_location_revealed", False) else None,
+        "mysterious_location_reached": mysterious_location_reached,
+        "chateau_revealed": chateau_revealed,
+        "chateau_location": CHATEAU_LOCATION if chateau_revealed else None,
+        "at_chateau": at_chateau,
+        "moves": session["game_state"]["moves"],
         "cities_visited": len(session["game_state"]["riddles_solved"]),
-        "total_cities": session["game_state"]["total_cities"],
+        "total_cities": len(CITIES),
         "current_city": session["game_state"]["current_city"],
-        "companions": session["game_state"]["companions"]
+        "in_city": in_city,
+        "current_riddle": session["game_state"]["current_riddle"] if in_city and nearest_city not in session["game_state"]["riddles_solved"] else None,
+        "event": session["game_state"].get("current_event")
     }
     
     return jsonify(response_data)
@@ -438,31 +465,39 @@ def check_location():
     lat = float(request.args.get('lat'))
     lon = float(request.args.get('lon'))
     
-    # Calculate distance to mysterious location
-    mysterious_distance = geodesic((lat, lon), MYSTERIOUS_LOCATION).kilometers
+    # Get game state
+    game_state = session.get("game_state", {})
+    all_cities_visited = len(game_state.get("riddles_solved", [])) >= len(CITIES)
     
-    # Calculate distance to actual château
+    # Calculate distances
+    mysterious_distance = geodesic((lat, lon), MYSTERIOUS_LOCATION).kilometers
     chateau_distance = geodesic((lat, lon), CHATEAU_LOCATION).kilometers
     
     # Initialize response
     response = {
-        'mysterious_location': MYSTERIOUS_LOCATION,
-        'show_mysterious': True,
+        'mysterious_location': MYSTERIOUS_LOCATION if all_cities_visited else None,
+        'show_mysterious': all_cities_visited,
         'show_chateau': False,
         'chateau_location': None,
-        'show_popup': False
+        'show_popup': False,
+        'message': None
     }
     
-    # If player is close to mysterious location, reveal château
-    if mysterious_distance <= REVEAL_THRESHOLD:
+    # If player is close to mysterious location and has visited all cities
+    if all_cities_visited and mysterious_distance <= REVEAL_THRESHOLD:
         response['show_mysterious'] = False
         response['show_chateau'] = True
         response['chateau_location'] = CHATEAU_LOCATION
+        response['message'] = "A new location has been revealed on the map..."
+        session["game_state"]["chateau_revealed"] = True
         
-        # If player is also close to actual château, show popup
+        # If player is also close to actual château
         if chateau_distance <= REVEAL_THRESHOLD:
             response['show_popup'] = True
+            session["game_state"]["at_chateau"] = True
+            response['message'] = "You've discovered the hidden Château!"
     
+    session.modified = True
     return jsonify(response)
 
 if __name__ == "__main__":

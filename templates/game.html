@@ -568,10 +568,9 @@
     <!-- Add Château reveal modal -->
     <div id="chateau-reveal" class="chateau-reveal">
         <div class="chateau-content">
-            <h2>The Château Awaits!</h2>
+            <h2>A Discovery!</h2>
             <p class="chateau-message">
-                VICTORY! The Château has been revealed! Your journey, sacrifies and commitment all through your life has led you to this one specifc moment.
-                Make your way to the château to sucle on it's sweet summer fruit...
+                A new location has been revealed on the map...
             </p>
             <button onclick="document.getElementById('chateau-reveal').style.display='none'">Continue Your Quest</button>
         </div>
@@ -580,24 +579,13 @@
     <!-- Add Château arrival modal -->
     <div id="chateau-arrival" class="chateau-reveal">
         <div class="chateau-content">
-            <h2>Welcome to Château de Goudourville</h2>
+            <h2>The Château Awaits!</h2>
             <p class="chateau-message">
-                You have discovered the magnificent Château de Goudourville! 
-                Behold its ancient beauty and suculent fruit...
+                VICTORY! The Château has been revealed! Your journey, sacrifices and commitment all through your life has led you to this one specific moment.
+                Make your way to the château to suckle on its sweet summer fruit...
             </p>
-            <div class="chateau-photos">
-                <img src="https://raw.githubusercontent.com/rbrcode/GeoGame/main/chateau.jpg" alt="Château de Goudourville" class="chateau-photo">
-            </div>
-            <div class="chateau-links" style="margin-top: 20px;">
-                <p>Learn more about this magnificent château:</p>
-                <a href="https://www.votre-chateau-de-famille.com/chateau/chateau-de-goudourville/" target="_blank" class="chateau-link">
-                    <button>Visit Official Family Website</button>
-                </a>
-                <a href="https://www.chateau-goudourville.fr/" target="_blank" class="chateau-link">
-                    <button>Visit Château Website</button>
-                </a>
-            </div>
-            <button onclick="document.getElementById('chateau-arrival').style.display='none'" style="margin-top: 20px;">Continue Exploring</button>
+            <img src="{{ url_for('static', filename='chateau_mist.jpg') }}" alt="Château in the mist" class="chateau-image">
+            <button onclick="document.getElementById('chateau-arrival').style.display='none'">Continue Your Quest</button>
         </div>
     </div>
 
@@ -1007,18 +995,25 @@
 
         // Handle mysterious location and chateau
         function handleMysteriousLocation(data) {
-            if (data.mysterious_location_reached) {
-                const iframe = document.querySelector('iframe');
-                if (iframe) {
-                    iframe.contentWindow.postMessage({
-                        type: 'revealMysteriousLocation',
-                        location: data.mysterious_location
-                    }, '*');
-                }
+            const iframe = document.querySelector('iframe');
+            if (!iframe) return;
+
+            // Handle mysterious location reveal
+            if (data.mysterious_location_revealed && data.mysterious_location) {
+                iframe.contentWindow.postMessage({
+                    type: 'revealMysteriousLocation',
+                    location: data.mysterious_location
+                }, '*');
             }
             
-            // Only show the chateau arrival modal when actually at the chateau
-            if (data.at_chateau) {
+            // Handle chateau reveal
+            if (data.chateau_revealed && data.chateau_location) {
+                iframe.contentWindow.postMessage({
+                    type: 'revealChateau',
+                    location: data.chateau_location
+                }, '*');
+                
+                // Show the chateau arrival modal
                 document.getElementById('chateau-arrival').style.display = 'flex';
             }
         }
