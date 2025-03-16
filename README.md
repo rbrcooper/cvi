@@ -1,4 +1,4 @@
-# Medieval European Quest Game
+# The hunt for the Chateau
 
 An interactive web-based game where players explore medieval European cities, solve riddles, and discover a mysterious château.
 
