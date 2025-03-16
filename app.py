@@ -33,9 +33,7 @@ def init_game_state():
         session["game_state"] = {
             "current_city": None,
             "moves": 0,
-            "events_encountered": [],
             "riddles_solved": [],
-            "current_event": None,
             "game_completed": False,
             "player_position": None,
             "current_riddle": None,
@@ -46,18 +44,15 @@ def init_game_state():
             "score": {
                 "total": 0,
                 "riddles_solved": 0,
-                "events": 0,
                 "efficiency_bonus": 0,
                 "wrong_answers": 0
             },
             "achievements": {},
             "total_distance": 0.0,
-            "successful_events": 0,
             "last_riddle_moves": 0,
             "total_cities": len(CITIES),
             "stamina": 100.0,
-            "wrong_answers": {},
-            "moves_since_last_event": 0
+            "wrong_answers": {}
         }
         print("Initialized new game state")
 
@@ -99,14 +94,11 @@ def index():
             session["game_state"]["player_name"] = player_name
             session["game_state"]["moves"] = 0
             session["game_state"]["riddles_solved"] = []
-            session["game_state"]["events_encountered"] = []
-            session["game_state"]["current_event"] = None
             session["game_state"]["game_completed"] = False
             session["game_state"]["in_city"] = True
             session["game_state"]["score"] = {
                 "total": 0,
                 "riddles_solved": 0,
-                "events": 0,
                 "efficiency_bonus": 0,
                 "wrong_answers": 0
             }
@@ -168,22 +160,6 @@ def move():
         # Update position
         session["game_state"]["player_position"] = [current_lat, current_lon]
         session["game_state"]["moves"] += 1
-        session["game_state"]["moves_since_last_event"] += 1
-        
-        # Check for random event (10% chance every 5 moves)
-        if session["game_state"]["moves_since_last_event"] >= 5 and random.random() < 0.1:
-            # Get list of events that haven't been encountered yet
-            available_events = [event for event in RANDOM_EVENTS if event["title"] not in session["game_state"]["events_encountered"]]
-            # If all events have been encountered, reset the list
-            if not available_events:
-                session["game_state"]["events_encountered"] = []
-                available_events = RANDOM_EVENTS
-            
-            new_event = random.choice(available_events)
-            if new_event:
-                session["game_state"]["current_event"] = new_event
-                session["game_state"]["events_encountered"].append(new_event["title"])
-                session["game_state"]["moves_since_last_event"] = 0
         
         # Update stamina
         stamina_cost = 0.2  # Base stamina cost
@@ -266,8 +242,7 @@ def move():
         "total_cities": len(CITIES),
         "current_city": session["game_state"]["current_city"],
         "in_city": in_city,
-        "current_riddle": session["game_state"]["current_riddle"] if in_city and nearest_city not in session["game_state"]["riddles_solved"] else None,
-        "event": session["game_state"].get("current_event")
+        "current_riddle": session["game_state"]["current_riddle"] if in_city and nearest_city not in session["game_state"]["riddles_solved"] else None
     }
     
     return jsonify(response_data)

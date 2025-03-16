@@ -51,7 +51,7 @@ CHARACTERS = {
     "archer": Character(
         name="Techno Goblin",
         icon="👺",
-        bonus_description="Moves 20% faster, stamina is moderately impacted",
+        bonus_description="Moves 20% faster, who knows for how long",
         move_multiplier=1.2,
         stamina_bonus=-0.2,
         deadly_event_chance=0.0001,  # 0.01% chance
