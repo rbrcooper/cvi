@@ -97,42 +97,72 @@ def get_nearest_city(lat, lon):
 
 @app.route("/", methods=["GET", "POST"])
 def index():
-    init_game_state()
-    if request.method == "POST":
-        chosen_city = request.form.get("start_location")
-        chosen_character = request.form.get("character")
-        player_name = request.form.get("player_name")
-        
-        if not player_name:
-            flash("Please enter your name!", "error")
+    try:
+        if not init_game_state():
+            flash("Error initializing game state. Please try again.", "error")
             return render_template("index.html", locations=CITIES.keys(), characters=CHARACTERS, version="1.1")
-        
-        if chosen_character not in CHARACTERS:
-            flash("Please select a valid character!", "error")
-            return render_template("index.html", locations=CITIES.keys(), characters=CHARACTERS, version="1.1")
+
+        if request.method == "POST":
+            chosen_city = request.form.get("start_location")
+            chosen_character = request.form.get("character")
+            player_name = request.form.get("player_name")
             
-        if chosen_city in CITIES:
-            session["game_state"]["current_city"] = chosen_city
-            session["game_state"]["player_position"] = CITIES[chosen_city].coordinates
-            session["game_state"]["character"] = chosen_character
-            session["game_state"]["player_name"] = player_name
-            session["game_state"]["moves"] = 0
-            session["game_state"]["riddles_solved"] = []
-            session["game_state"]["game_completed"] = False
-            session["game_state"]["in_city"] = True
-            session["game_state"]["score"] = {
-                "total": 0,
-                "riddles_solved": 0,
-                "efficiency_bonus": 0,
-                "wrong_answers": 0
-            }
-            session["game_state"]["companions"] = []
-            session.modified = True
-            return redirect(url_for("game"))
-        else:
-            flash("Invalid city selected!", "error")
-    
-    return render_template("index.html", locations=CITIES.keys(), characters=CHARACTERS, version="1.1")
+            print(f"Received form data - City: {chosen_city}, Character: {chosen_character}, Name: {player_name}")
+            
+            if not player_name:
+                flash("Please enter your name!", "error")
+                return render_template("index.html", locations=CITIES.keys(), characters=CHARACTERS, version="1.1")
+            
+            if chosen_character not in CHARACTERS:
+                flash("Please select a valid character!", "error")
+                return render_template("index.html", locations=CITIES.keys(), characters=CHARACTERS, version="1.1")
+                
+            if chosen_city in CITIES:
+                try:
+                    if "game_state" not in session:
+                        session["game_state"] = {}
+                    
+                    session["game_state"].update({
+                        "current_city": chosen_city,
+                        "player_position": CITIES[chosen_city].coordinates,
+                        "character": chosen_character,
+                        "player_name": player_name,
+                        "moves": 0,
+                        "riddles_solved": [],
+                        "game_completed": False,
+                        "in_city": True,
+                        "score": {
+                            "total": 0,
+                            "riddles_solved": 0,
+                            "efficiency_bonus": 0,
+                            "wrong_answers": 0
+                        },
+                        "companions": [],
+                        "stamina": 100.0,
+                        "wrong_answers": {},
+                        "has_died": False,
+                        "death_message": "",
+                        "total_cities": len(CITIES),
+                        "total_distance": 0.0,
+                        "last_riddle_moves": 0,
+                        "achievements": {}
+                    })
+                    
+                    session.modified = True
+                    print(f"Game state initialized successfully: {session['game_state']}")
+                    return redirect(url_for("game"))
+                except Exception as e:
+                    print(f"Error updating game state: {str(e)}")
+                    flash(f"Error starting game: {str(e)}", "error")
+                    return render_template("index.html", locations=CITIES.keys(), characters=CHARACTERS, version="1.1")
+            else:
+                flash("Invalid city selected!", "error")
+        
+        return render_template("index.html", locations=CITIES.keys(), characters=CHARACTERS, version="1.1")
+    except Exception as e:
+        print(f"Unexpected error in index route: {str(e)}")
+        flash("An unexpected error occurred. Please try again.", "error")
+        return render_template("index.html", locations=CITIES.keys(), characters=CHARACTERS, version="1.1")
 
 @app.route("/move", methods=["POST"])
 def move():
@@ -417,31 +447,55 @@ def solve_riddle():
 
 @app.route("/game", methods=["GET", "POST"])
 def game():
-    if not session.get("game_state"):
-        init_game_state()
-    
-    if not session.get("game_state", {}).get("current_city"):
-        print("No city selected, redirecting to index")
+    try:
+        # Check if game state exists
+        if not session.get("game_state"):
+            print("No game state found, initializing...")
+            if not init_game_state():
+                print("Failed to initialize game state")
+                flash("Error initializing game state. Please start a new game.", "error")
+                return redirect(url_for("index"))
+        
+        # Validate required game state data
+        if not session["game_state"].get("current_city"):
+            print("No current city found")
+            flash("Please select a starting city.", "error")
+            return redirect(url_for("index"))
+            
+        if not session["game_state"].get("character"):
+            print("No character selected")
+            flash("Please select a character.", "error")
+            return redirect(url_for("index"))
+        
+        current_city = session["game_state"]["current_city"]
+        print(f"Current city in game route: {current_city}")
+        
+        # Validate city exists in CITIES
+        if current_city not in CITIES:
+            print(f"Invalid city: {current_city}")
+            flash("Invalid city selected. Please start a new game.", "error")
+            return redirect(url_for("index"))
+            
+        city_data = CITIES[current_city]
+        
+        # Prepare template data with error handling
+        template_data = {
+            "city": city_data,
+            "game_state": session["game_state"],
+            "current_event": session["game_state"].get("current_event"),
+            "CITIES": CITIES,
+            "CHATEAU_LOCATION": CHATEAU_LOCATION,
+            "ACHIEVEMENTS": ACHIEVEMENTS,
+            "characters": CHARACTERS
+        }
+        
+        print("Rendering game template with data:", template_data)
+        return render_template("game.html", **template_data)
+        
+    except Exception as e:
+        print(f"Error in game route: {str(e)}")
+        flash("An error occurred while loading the game. Please try again.", "error")
         return redirect(url_for("index"))
-
-    current_city = session["game_state"]["current_city"]
-    print(f"Current city in game route: {current_city}")
-    city_data = CITIES[current_city]
-
-    # Ensure character is available
-    if not session["game_state"].get("character"):
-        return redirect(url_for("index"))
-
-    return render_template(
-        "game.html",
-        city=city_data,
-        game_state=session["game_state"],
-        current_event=session["game_state"]["current_event"],
-        CITIES=CITIES,
-        CHATEAU_LOCATION=CHATEAU_LOCATION,
-        ACHIEVEMENTS=ACHIEVEMENTS,
-        characters=CHARACTERS
-    )
 
 @app.route("/reset")
 def reset_game():
