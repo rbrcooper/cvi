@@ -545,6 +545,38 @@
             width: 100px;
             margin: 0 10px;
         }
+        .chateau-links {
+            margin: 20px 0;
+            text-align: center;
+        }
+        
+        .chateau-links p {
+            margin-bottom: 15px;
+            font-size: 1.2em;
+            color: #8b4513;
+        }
+        
+        .chateau-links .btn {
+            margin: 0 10px;
+            padding: 10px 20px;
+            background-color: #8b4513;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            display: inline-block;
+            transition: background-color 0.3s;
+        }
+        
+        .chateau-links .btn:hover {
+            background-color: #654321;
+        }
+        
+        .chateau-image {
+            max-width: 100%;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            margin: 20px 0;
+        }
     </style>
 </head>
 <body>
@@ -744,6 +776,24 @@
                             <p>No companions yet</p>
                         {% endif %}
                     </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add the death modal -->
+    <div class="modal fade" id="deathModal" tabindex="-1" aria-labelledby="deathModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="deathModalLabel">Game Over!</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p id="deathMessage"></p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary" onclick="window.location.href='/reset'">Start New Game</button>
                 </div>
             </div>
         </div>
@@ -1013,8 +1063,31 @@
                     location: data.chateau_location
                 }, '*');
                 
-                // Show the chateau arrival modal
+                // Show the chateau reveal modal
+                document.getElementById('chateau-reveal').style.display = 'flex';
+            }
+
+            // Handle arrival at the chateau
+            if (data.at_chateau) {
+                // Show the chateau arrival modal with the image and links
                 document.getElementById('chateau-arrival').style.display = 'flex';
+                
+                // Update the chateau content
+                const chateauContent = document.querySelector('#chateau-arrival .chateau-content');
+                chateauContent.innerHTML = `
+                    <h2>The Château Awaits!</h2>
+                    <p class="chateau-message">
+                        VICTORY! The Château has been revealed! Your journey, sacrifices and commitment all through your life has led you to this one specific moment.
+                        Make your way to the château to suckle on its sweet summer fruit...
+                    </p>
+                    <div class="chateau-links">
+                        <p>Learn more about the Château de Goudourville:</p>
+                        <a href="https://www.chateaudegoudourville.com" target="_blank" class="btn btn-primary">Official Website</a>
+                        <a href="https://www.google.com/maps/place/Ch%C3%A2teau+de+Goudourville" target="_blank" class="btn btn-primary">View on Google Maps</a>
+                    </div>
+                    <img src="/static/chateau_mist.jpg" alt="Château in the mist" class="chateau-image" style="max-width: 100%; margin-top: 20px;">
+                    <button onclick="document.getElementById('chateau-arrival').style.display='none'" class="btn btn-primary">Continue Your Quest</button>
+                `;
             }
         }
 
