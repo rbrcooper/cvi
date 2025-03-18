@@ -252,10 +252,14 @@ def move():
             "nearest_city": nearest_city,
             "distance": city_distance,
             "stamina": session["game_state"]["stamina"],
-            "score": session["game_state"]["score"],
+            "score": session["game_state"]["score"]["total"],
             "companions": session["game_state"]["companions"],
-            "chateau_revealed": session["game_state"].get("chateau_revealed", False),
-            "game_completed": session["game_state"].get("game_completed", False)
+            "game_state": {
+                "moves": session["game_state"]["moves"],
+                "score": session["game_state"]["score"]["total"],
+                "riddles_solved": len(session["game_state"]["riddles_solved"]),
+                "total_distance": session["game_state"]["total_distance"]
+            }
         })
 
     except Exception as e:

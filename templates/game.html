@@ -1293,7 +1293,7 @@
 
         function handleMoveResponse(response) {
             if (response.error) {
-                console.error("Move error:", response.error);
+                showMessage(response.error, "error");
                 return;
             }
 
@@ -1336,6 +1336,28 @@
             // Handle château reveal
             if (response.chateau_revealed) {
                 showChateauReveal();
+            }
+
+            // Update game state
+            if (response.game_state) {
+                updateGameState(response.game_state);
+            }
+        }
+
+        function updateGameState(gameState) {
+            // Update moves counter
+            if (gameState.moves !== undefined) {
+                document.getElementById("moves-counter").textContent = gameState.moves;
+            }
+            
+            // Update score
+            if (gameState.score !== undefined) {
+                document.getElementById("score-counter").textContent = gameState.score;
+            }
+            
+            // Update riddles solved
+            if (gameState.riddles_solved !== undefined) {
+                document.getElementById("riddles-counter").textContent = gameState.riddles_solved;
             }
         }
     </script>
