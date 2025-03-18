@@ -19,7 +19,7 @@ CHARACTERS = {
         icon="🥖",
         bonus_description="80% chance of baguette",
         move_multiplier=1.2,
-        deadly_event_chance=0.0001,  # 0.01% chance
+        deadly_event_chance=0.001,  # 0.01% chance
         deadly_event="Admits English cuisine is superior and dies from shame"
     ),
     "scholar": Character(
@@ -45,7 +45,7 @@ CHARACTERS = {
         icon="👑",
         bonus_description="20% better chance at favorable event outcomes, chance of guillotine is increased",
         event_bonus_chance=0.2,
-        deadly_event_chance=0.0001,  # 0.01% chance
+        deadly_event_chance=0.01,  # 0.01% chance
         deadly_event="Vive la révolution! Gets guillotined by angry peasants"
     ),
     "archer": Character(
@@ -54,7 +54,7 @@ CHARACTERS = {
         bonus_description="Moves 20% faster, who knows for how long",
         move_multiplier=1.2,
         stamina_bonus=-0.2,
-        deadly_event_chance=0.0001,  # 0.01% chance
+        deadly_event_chance=0.001,  # 0.01% chance
         deadly_event="Uses up all disco biscuits and falls into eternal sleep"
     )
 }

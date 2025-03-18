@@ -12,6 +12,7 @@ from game_mechanics import (
     ACHIEVEMENTS
 )
 import random
+from datetime import datetime
 
 app = Flask(__name__)
 # Use environment variable for secret key or generate a random one
@@ -166,152 +167,100 @@ def index():
 
 @app.route("/move", methods=["POST"])
 def move():
-    if 'game_state' not in session:
-        init_game_state()
+    try:
+        if not session.get("game_state"):
+            return jsonify({"error": "No active game"}), 400
 
-    data = request.get_json()
-    if not data:
-        return jsonify({'error': 'Invalid request data'}), 400
-
-    # Get the character's bonuses
-    character = CHARACTERS.get(session['game_state']['character'])
-    if not character:
-        return jsonify({'error': 'Invalid character'}), 400
-
-    # Get current position
-    if not session["game_state"]["player_position"]:
-        return jsonify({"error": "Game not started"}), 400
-    
-    current_lat, current_lon = session["game_state"]["player_position"]
-    
-    # Apply character's move multiplier
-    move_multiplier = character.move_multiplier
-    stamina_bonus = character.stamina_bonus
-    adjusted_speed = MOVEMENT_SPEED * move_multiplier
-    
-    # Update position based on movement type
-    if 'direction' in data:
-        # WASD movement
-        direction = data['direction'].lower()
-        stamina = session["game_state"]["stamina"]
-        
-        # Apply slower movement when tired
-        if stamina < 20:
-            adjusted_speed *= 0.5
+        data = request.get_json()
+        direction = data.get("direction", "").lower()
+        current_pos = session["game_state"]["player_position"]
         
         # Store old position for distance calculation
-        old_position = (current_lat, current_lon)
+        old_pos = current_pos.copy()
         
+        # Update position based on direction
         if direction == "w":
-            current_lat += adjusted_speed
+            current_pos[1] += MOVEMENT_SPEED
         elif direction == "s":
-            current_lat -= adjusted_speed
+            current_pos[1] -= MOVEMENT_SPEED
         elif direction == "a":
-            current_lon -= adjusted_speed
+            current_pos[0] -= MOVEMENT_SPEED
         elif direction == "d":
-            current_lon += adjusted_speed
-        
-        # Update position
-        session["game_state"]["player_position"] = [current_lat, current_lon]
-        session["game_state"]["moves"] += 1
-        
-        # Check for rare deadly events
-        if not session["game_state"].get("has_died", False):  # Only check if haven't died yet
-            if random.random() < character.deadly_event_chance:
-                session["game_state"]["has_died"] = True
-                session["game_state"]["death_message"] = character.deadly_event
-                return jsonify({
-                    "success": False,
-                    "game_over": True,
-                    "message": f"Oh no! {character.deadly_event}",
-                    "position": [current_lat, current_lon]
-                })
-        
-        # Update stamina
-        stamina_cost = 0.2  # Base stamina cost
-        if stamina > 0:
-            adjusted_cost = stamina_cost * (1.0 - stamina_bonus)
-            session["game_state"]["stamina"] = max(0, stamina - adjusted_cost)
-        
-        # Stamina regeneration
-        if random.random() < 0.15:
-            base_regen = 10
-            bonus_regen = base_regen * (1.0 + stamina_bonus)
-            session["game_state"]["stamina"] = min(100, session["game_state"]["stamina"] + bonus_regen)
-        
-        # Calculate distance traveled
-        distance = geodesic(old_position, (current_lat, current_lon)).kilometers
-        session["game_state"]["total_distance"] += distance
-    else:
-        return jsonify({'error': 'Invalid movement data'}), 400
-    
-    # Check if player is near a city
-    nearest_city, distance_to_city = get_nearest_city(current_lat, current_lon)
-    in_city = distance_to_city < CITY_ENTRY_THRESHOLD
-    
-    # Check for mysterious location
-    mysterious_location_reached = False
-    chateau_revealed = False
-    at_chateau = False
-    
-    # Check if all cities have been visited
-    all_cities_visited = len(session["game_state"]["riddles_solved"]) >= len(CITIES)
-    if all_cities_visited:
-        session["game_state"]["mysterious_location_revealed"] = True
-        mysterious_location = MYSTERIOUS_LOCATION  # Use the constant defined at the top
-        distance_to_mystery = geodesic((current_lat, current_lon), mysterious_location).kilometers
-        if distance_to_mystery < CITY_ENTRY_THRESHOLD:
-            mysterious_location_reached = True
-            session["game_state"]["chateau_revealed"] = True
-            chateau_revealed = True
-            
-        # Check if player is at the château location
-        if session["game_state"].get("chateau_revealed", False):
-            distance_to_chateau = geodesic((current_lat, current_lon), CHATEAU_LOCATION).kilometers
-            if distance_to_chateau < CITY_ENTRY_THRESHOLD:
-                session["game_state"]["at_chateau"] = True
-                at_chateau = True
-    
-    # Update city status
-    if in_city and not session["game_state"]["in_city"]:
-        session["game_state"]["current_city"] = nearest_city
-        session["game_state"]["in_city"] = True
-        # Only set the current_riddle if the city hasn't been solved yet
-        if nearest_city not in session["game_state"]["riddles_solved"]:
-            session["game_state"]["current_riddle"] = CITIES[nearest_city].riddle
+            current_pos[0] += MOVEMENT_SPEED
         else:
-            session["game_state"]["current_riddle"] = None
-    elif not in_city and session["game_state"]["in_city"]:
-        session["game_state"]["in_city"] = False
-        session["game_state"]["current_riddle"] = None
-        session["game_state"]["current_city"] = None
+            return jsonify({"error": "Invalid direction"}), 400
 
-    session.modified = True
-    
-    # Prepare response
-    response_data = {
-        "success": True,
-        "position": [current_lat, current_lon],
-        "nearest_city": nearest_city,
-        "distance": distance_to_city,
-        "stamina": session["game_state"]["stamina"],
-        "score": session["game_state"]["score"]["total"],
-        "companions": session["game_state"]["companions"],
-        "mysterious_location_revealed": session["game_state"].get("mysterious_location_revealed", False),
-        "mysterious_location": MYSTERIOUS_LOCATION if session["game_state"].get("mysterious_location_revealed", False) else None,
-        "mysterious_location_reached": mysterious_location_reached,
-        "chateau_revealed": chateau_revealed,
-        "chateau_location": CHATEAU_LOCATION if chateau_revealed else None,
-        "at_chateau": at_chateau,
-        "moves": session["game_state"]["moves"],
-        "cities_visited": len(session["game_state"]["riddles_solved"]),
-        "total_cities": len(CITIES),
-        "current_city": session["game_state"]["current_city"],
-        "in_city": in_city,
-        "current_riddle": session["game_state"]["current_riddle"] if in_city and nearest_city not in session["game_state"]["riddles_solved"] else None
-    }
-    
-    return jsonify(response_data)
+        # Apply character bonuses
+        character = session["game_state"]["character"]
+        if character in CHARACTERS:
+            char_data = CHARACTERS[character]
+            if direction in ["w", "s", "a", "d"]:
+                current_pos[0] += char_data.get("movement_speed", 0)
+                current_pos[1] += char_data.get("movement_speed", 0)
+                session["game_state"]["stamina"] -= char_data.get("stamina_cost", 0.1)
+
+        # Calculate distance traveled
+        distance = geodesic(old_pos, current_pos).kilometers
+        session["game_state"]["total_distance"] += distance
+        session["game_state"]["moves"] += 1
+
+        # Check if near château
+        chateau_distance = geodesic(current_pos, CHATEAU_LOCATION).kilometers
+        if chateau_distance < REVEAL_THRESHOLD:
+            if not session["game_state"].get("chateau_revealed"):
+                session["game_state"]["chateau_revealed"] = True
+                # Save player data to leaderboard
+                player_data = {
+                    "name": session["game_state"]["player_name"],
+                    "character": session["game_state"]["character"],
+                    "score": session["game_state"]["score"]["total"],
+                    "moves": session["game_state"]["moves"],
+                    "distance": session["game_state"]["total_distance"],
+                    "riddles_solved": len(session["game_state"]["riddles_solved"]),
+                    "completion_time": session["game_state"]["moves"],
+                    "date": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                }
+                
+                if "leaderboard" not in session:
+                    session["leaderboard"] = []
+                session["leaderboard"].append(player_data)
+                
+                # Mark game as completed
+                session["game_state"]["game_completed"] = True
+                
+                return jsonify({
+                    "position": current_pos,
+                    "nearest_city": None,
+                    "distance": 0,
+                    "stamina": session["game_state"]["stamina"],
+                    "score": session["game_state"]["score"],
+                    "companions": session["game_state"]["companions"],
+                    "chateau_revealed": True,
+                    "game_completed": True,
+                    "redirect": url_for("leaderboard")
+                })
+
+        # Check if near any city
+        nearest_city, city_distance = get_nearest_city(current_pos[0], current_pos[1])
+        
+        # Update game state
+        session["game_state"]["player_position"] = current_pos
+        session.modified = True
+
+        return jsonify({
+            "position": current_pos,
+            "nearest_city": nearest_city,
+            "distance": city_distance,
+            "stamina": session["game_state"]["stamina"],
+            "score": session["game_state"]["score"],
+            "companions": session["game_state"]["companions"],
+            "chateau_revealed": session["game_state"].get("chateau_revealed", False),
+            "game_completed": session["game_state"].get("game_completed", False)
+        })
+
+    except Exception as e:
+        print(f"Error in move route: {str(e)}")
+        return jsonify({"error": str(e)}), 500
 
 @app.route("/handle_event", methods=["POST"])
 def handle_event():
@@ -504,15 +453,36 @@ def reset_game():
 
 @app.route("/leaderboard")
 def leaderboard():
-    # Implement proper leaderboard storage (e.g., in a database)
-    # For now, we'll use a simple in-memory list
-    if "leaderboard" not in session:
-        session["leaderboard"] = []
-    
-    return render_template(
-        "leaderboard.html",
-        scores=sorted(session["leaderboard"], key=lambda x: x["score"], reverse=True)[:10]
-    )
+    try:
+        # Get leaderboard data from session
+        if "leaderboard" not in session:
+            session["leaderboard"] = []
+        
+        # Sort by score and get top 10
+        scores = sorted(session["leaderboard"], key=lambda x: x["score"], reverse=True)[:10]
+        
+        # Calculate some statistics
+        total_players = len(session["leaderboard"])
+        avg_score = sum(score["score"] for score in scores) / len(scores) if scores else 0
+        avg_moves = sum(score["moves"] for score in scores) / len(scores) if scores else 0
+        avg_distance = sum(score["distance"] for score in scores) / len(scores) if scores else 0
+        
+        stats = {
+            "total_players": total_players,
+            "avg_score": round(avg_score, 2),
+            "avg_moves": round(avg_moves, 2),
+            "avg_distance": round(avg_distance, 2)
+        }
+        
+        return render_template(
+            "leaderboard.html",
+            scores=scores,
+            stats=stats
+        )
+    except Exception as e:
+        print(f"Error in leaderboard route: {str(e)}")
+        flash("Error loading leaderboard. Please try again.", "error")
+        return redirect(url_for("index"))
 
 @app.route("/map")
 def map_view():
