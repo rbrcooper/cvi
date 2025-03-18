@@ -872,71 +872,70 @@
             .then(response => response.json())
             .then(data => {
                 if (data.error) {
-                    console.error('Move error:', data.error);
+                    showMessage(data.error, "error");
                     return;
                 }
 
-                // Check for game over
-                if (data.game_over) {
-                    const deathModal = document.getElementById('death-modal');
-                    document.getElementById('death-message').textContent = data.message;
-                    deathModal.style.display = 'flex';
-                    canMove = false;
-                    document.querySelector('.controls').classList.add('disabled');
-                    return;
+                // Update player position on the map
+                if (data.position) {
+                    const iframe = document.querySelector('iframe');
+                    if (iframe) {
+                        iframe.contentWindow.postMessage({
+                            type: 'updatePosition',
+                            lat: data.position[0],
+                            lon: data.position[1]
+                        }, '*');
+                    }
                 }
-                
-                // Update position and pan map
-                const position = data.position;
-                
-                // Update map position immediately
-                const iframe = document.querySelector('iframe');
-                if (iframe) {
-                    iframe.contentWindow.postMessage({
-                        type: 'updatePosition',
-                        lat: position[0],
-                        lon: position[1]
-                    }, '*');
-                }
-                
-                // Update distance and moves counter
-                document.getElementById('distance').textContent = 
-                    `${Math.round(data.distance * 100) / 100} km`;
-                document.getElementById('moves').textContent = data.moves;
-                
-                // Update stamina
-                updateStaminaBar(data.stamina);
-                
-                // Update status and handle city entry
-                if (data.in_city) {
-                    document.getElementById('status').textContent = `In ${data.nearest_city}`;
-                    handleCityEntry(data);
+
+                // Update nearest city and distance
+                if (data.nearest_city) {
+                    document.getElementById('distance').textContent = 
+                        `${Math.round(data.distance * 100) / 100} km`;
+                    document.getElementById('status').textContent = `Near ${data.nearest_city}`;
                 } else {
                     document.getElementById('status').textContent = 'Exploring...';
                 }
-                
-                // Handle random events
-                if (data.event) {
-                    showEventModal(data.event);
-                }
-                
-                // Check for mysterious location and chateau
-                handleMysteriousLocation(data);
 
-                // Update both cities count displays
-                document.getElementById('main-cities-count').textContent = `${data.cities_visited}/${data.total_cities}`;
-                document.getElementById('cities-visited').textContent = `${data.cities_visited}/${data.total_cities}`;
-                
-                // Update both location displays
-                const locationText = data.current_city || "Exploring";
-                document.getElementById('main-current-location').textContent = locationText;
-                document.getElementById('current-location').textContent = locationText;
-                
-                // Update other stats
-                document.getElementById('moves-counter').textContent = data.moves;
-                document.getElementById('score-counter').textContent = data.score;
+                // Update stamina
+                if (data.stamina !== undefined) {
+                    updateStaminaBar(data.stamina);
+                }
+
+                // Update score
+                if (data.score !== undefined) {
+                    document.getElementById('score-counter').textContent = data.score;
+                }
+
+                // Update companions
+                if (data.companions) {
+                    updateCompanions(data.companions);
+                }
+
+                // Update game state
+                if (data.game_state) {
+                    document.getElementById('moves-counter').textContent = data.game_state.moves;
+                    document.getElementById('score-counter').textContent = data.game_state.score;
+                    document.getElementById('riddles-counter').textContent = data.game_state.riddles_solved;
+                }
+
+                // Handle château reveal
+                if (data.chateau_revealed) {
+                    document.getElementById('chateau-reveal').style.display = 'flex';
+                }
+
+                // Handle game completion
+                if (data.game_completed && data.redirect) {
+                    showMessage("Congratulations! You have completed your quest!", "success");
+                    setTimeout(() => {
+                        window.location.href = data.redirect;
+                    }, 2000);
+                }
             })
-            .catch(error => console.error('Error:', error));
+            .catch(error => {
+                console.error('Error:', error);
+                showMessage('An error occurred while moving', 'error');
+            });
         }
 
         // Handle city entry

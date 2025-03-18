@@ -233,7 +233,7 @@ def move():
                     "nearest_city": None,
                     "distance": 0,
                     "stamina": session["game_state"]["stamina"],
-                    "score": session["game_state"]["score"],
+                    "score": session["game_state"]["score"]["total"],
                     "companions": session["game_state"]["companions"],
                     "chateau_revealed": True,
                     "game_completed": True,
