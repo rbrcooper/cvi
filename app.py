@@ -549,14 +549,16 @@ def check_location():
         response['show_mysterious'] = False
         response['show_chateau'] = True
         response['chateau_location'] = CHATEAU_LOCATION
-        response['message'] = "A new location has been revealed on the map..."
-        session["game_state"]["chateau_revealed"] = True
+        # Only show message if chateau hasn't been revealed yet
+        if not game_state.get("chateau_revealed", False):
+            response['message'] = "A new location has been revealed on the map..."
+            session["game_state"]["chateau_revealed"] = True
         
         # If player is also close to actual château
         if chateau_distance <= REVEAL_THRESHOLD:
             response['show_popup'] = True
+            response['message'] = "You have reached the mysterious Château de Goudourville!"
             session["game_state"]["at_chateau"] = True
-            response['message'] = "You've discovered the hidden Château!"
     
     session.modified = True
     return jsonify(response)
