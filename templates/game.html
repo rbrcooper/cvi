@@ -907,16 +907,21 @@
                     document.getElementById('score-counter').textContent = data.score;
                 }
 
-                // Update companions
-                if (data.companions) {
-                    updateCompanions(data.companions);
+                // Update moves counter
+                if (data.moves !== undefined) {
+                    document.getElementById('moves-counter').textContent = data.moves;
                 }
 
-                // Update game state
-                if (data.game_state) {
-                    document.getElementById('moves-counter').textContent = data.game_state.moves;
-                    document.getElementById('score-counter').textContent = data.game_state.score;
-                    document.getElementById('riddles-counter').textContent = data.game_state.riddles_solved;
+                // Update cities visited
+                if (data.cities_visited !== undefined && data.total_cities !== undefined) {
+                    document.getElementById('main-cities-count').textContent = `${data.cities_visited}/${data.total_cities}`;
+                    document.getElementById('cities-visited').textContent = `${data.cities_visited}/${data.total_cities}`;
+                }
+
+                // Update current location
+                if (data.current_city) {
+                    document.getElementById('main-current-location').textContent = data.current_city;
+                    document.getElementById('current-location').textContent = data.current_city;
                 }
 
                 // Handle château reveal
@@ -930,6 +935,11 @@
                     setTimeout(() => {
                         window.location.href = data.redirect;
                     }, 2000);
+                }
+
+                // Handle city entry and riddle
+                if (data.in_city && data.current_riddle) {
+                    handleCityEntry(data);
                 }
             })
             .catch(error => {
@@ -1085,9 +1095,34 @@
                         <a href="https://www.google.com/maps/place/Ch%C3%A2teau+de+Goudourville" target="_blank" class="btn btn-primary">View on Google Maps</a>
                     </div>
                     <img src="/static/chateau_mist.jpg" alt="Château in the mist" class="chateau-image" style="max-width: 100%; margin-top: 20px;">
-                    <button onclick="document.getElementById('chateau-arrival').style.display='none'" class="btn btn-primary">Continue Your Quest</button>
+                    <button onclick="completeGameAndRedirect()" class="btn btn-primary">Complete Your Quest</button>
                 `;
             }
+        }
+
+        // Add function to handle game completion and redirection
+        function completeGameAndRedirect() {
+            fetch('/complete_game', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showMessage("Congratulations! Your quest is complete!", "success");
+                    setTimeout(() => {
+                        window.location.href = '/leaderboard';
+                    }, 2000);
+                } else {
+                    showMessage("Error completing the game", "error");
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showMessage("Error completing the game", "error");
+            });
         }
 
         // Helper function to calculate distance
@@ -1288,76 +1323,6 @@
                     clearInterval(fadeInterval);
                 }
             }, 100);
-        }
-
-        function handleMoveResponse(response) {
-            if (response.error) {
-                showMessage(response.error, "error");
-                return;
-            }
-
-            // Update player position on the map
-            if (response.position) {
-                updatePlayerPosition(response.position);
-            }
-
-            // Check for game completion
-            if (response.game_completed && response.redirect) {
-                // Show completion message
-                showMessage("Congratulations! You have completed your quest!", "success");
-                // Redirect to leaderboard after a short delay
-                setTimeout(() => {
-                    window.location.href = response.redirect;
-                }, 2000);
-                return;
-            }
-
-            // Update nearest city and distance
-            if (response.nearest_city) {
-                updateNearestCity(response.nearest_city, response.distance);
-            }
-
-            // Update stamina
-            if (response.stamina !== undefined) {
-                updateStamina(response.stamina);
-            }
-
-            // Update score
-            if (response.score) {
-                updateScore(response.score);
-            }
-
-            // Update companions
-            if (response.companions) {
-                updateCompanions(response.companions);
-            }
-
-            // Handle château reveal
-            if (response.chateau_revealed) {
-                showChateauReveal();
-            }
-
-            // Update game state
-            if (response.game_state) {
-                updateGameState(response.game_state);
-            }
-        }
-
-        function updateGameState(gameState) {
-            // Update moves counter
-            if (gameState.moves !== undefined) {
-                document.getElementById("moves-counter").textContent = gameState.moves;
-            }
-            
-            // Update score
-            if (gameState.score !== undefined) {
-                document.getElementById("score-counter").textContent = gameState.score;
-            }
-            
-            // Update riddles solved
-            if (gameState.riddles_solved !== undefined) {
-                document.getElementById("riddles-counter").textContent = gameState.riddles_solved;
-            }
         }
     </script>
 </body>

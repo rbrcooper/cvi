@@ -259,19 +259,14 @@ def move():
     all_cities_visited = len(session["game_state"]["riddles_solved"]) >= len(CITIES)
     if all_cities_visited:
         session["game_state"]["mysterious_location_revealed"] = True
-        mysterious_location = MYSTERIOUS_LOCATION  # Use the constant defined at the top
-        distance_to_mystery = geodesic((current_lat, current_lon), mysterious_location).kilometers
-        if distance_to_mystery < CITY_ENTRY_THRESHOLD:
-            mysterious_location_reached = True
-            session["game_state"]["chateau_revealed"] = True
-            chateau_revealed = True
-            
+        session["game_state"]["chateau_revealed"] = True
+        chateau_revealed = True
+        
         # Check if player is at the château location
-        if session["game_state"].get("chateau_revealed", False):
-            distance_to_chateau = geodesic((current_lat, current_lon), CHATEAU_LOCATION).kilometers
-            if distance_to_chateau < CITY_ENTRY_THRESHOLD:
-                session["game_state"]["at_chateau"] = True
-                at_chateau = True
+        distance_to_chateau = geodesic((current_lat, current_lon), CHATEAU_LOCATION).kilometers
+        if distance_to_chateau < CITY_ENTRY_THRESHOLD:
+            session["game_state"]["at_chateau"] = True
+            at_chateau = True
     
     # Update city status
     if in_city and not session["game_state"]["in_city"]:
