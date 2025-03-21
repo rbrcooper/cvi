@@ -260,6 +260,7 @@ def move():
     if all_cities_visited:
         session["game_state"]["mysterious_location_revealed"] = True
         # Only set chateau_revealed if it hasn't been set before
+        
         if not session["game_state"].get("chateau_revealed", False):
             session["game_state"]["chateau_revealed"] = True
             chateau_revealed = True
@@ -299,7 +300,7 @@ def move():
         "mysterious_location": MYSTERIOUS_LOCATION if session["game_state"].get("mysterious_location_revealed", False) else None,
         "mysterious_location_reached": mysterious_location_reached,
         "chateau_revealed": chateau_revealed,
-        "chateau_location": CHATEAU_LOCATION if chateau_revealed else None,
+        "chateau_location": CHATEAU_LOCATION,
         "at_chateau": at_chateau,
         "moves": session["game_state"]["moves"],
         "cities_visited": len(session["game_state"]["riddles_solved"]),
@@ -309,8 +310,20 @@ def move():
         "current_riddle": session["game_state"]["current_riddle"] if in_city and nearest_city not in session["game_state"]["riddles_solved"] else None,
         "message": "A new location has been revealed on the map..." if chateau_revealed and not session["game_state"].get("chateau_revealed", False) else None
     }
+
+    print(f"Response data: {response_data}")
     
     return jsonify(response_data)
+
+@app.route("/state", methods=["GET"])
+def get_state():
+    return jsonify(session.get("game_state", {}))
+
+@app.route("/solve_all", methods=["GET"])
+def solve_all():
+    session["game_state"]["riddles_solved"] = list(c for c in CITIES.keys() if c.lower() != "london")
+    session.modified = True
+    return jsonify({"success": True}	)
 
 @app.route("/handle_event", methods=["POST"])
 def handle_event():
@@ -547,17 +560,18 @@ def check_location():
         'message': None
     }
     
-    # If player is close to mysterious location and has visited all cities
-    if all_cities_visited and mysterious_distance <= REVEAL_THRESHOLD:
+    # If all cities have been visited, reveal the château
+    if all_cities_visited:
         response['show_mysterious'] = False
         response['show_chateau'] = True
         response['chateau_location'] = CHATEAU_LOCATION
+        
         # Only show message if chateau hasn't been revealed yet
         if not game_state.get("chateau_revealed", False):
             response['message'] = "A new location has been revealed on the map..."
             session["game_state"]["chateau_revealed"] = True
         
-        # If player is also close to actual château
+        # If player is close to the château
         if chateau_distance <= REVEAL_THRESHOLD:
             response['show_popup'] = True
             response['message'] = "You have reached the mysterious Château de Goudourville!"
