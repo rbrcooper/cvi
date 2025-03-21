@@ -259,8 +259,10 @@ def move():
     all_cities_visited = len(session["game_state"]["riddles_solved"]) >= len(CITIES)
     if all_cities_visited:
         session["game_state"]["mysterious_location_revealed"] = True
-        session["game_state"]["chateau_revealed"] = True
-        chateau_revealed = True
+        # Only set chateau_revealed if it hasn't been set before
+        if not session["game_state"].get("chateau_revealed", False):
+            session["game_state"]["chateau_revealed"] = True
+            chateau_revealed = True
         
         # Check if player is at the château location
         distance_to_chateau = geodesic((current_lat, current_lon), CHATEAU_LOCATION).kilometers
@@ -304,7 +306,8 @@ def move():
         "total_cities": len(CITIES),
         "current_city": session["game_state"]["current_city"],
         "in_city": in_city,
-        "current_riddle": session["game_state"]["current_riddle"] if in_city and nearest_city not in session["game_state"]["riddles_solved"] else None
+        "current_riddle": session["game_state"]["current_riddle"] if in_city and nearest_city not in session["game_state"]["riddles_solved"] else None,
+        "message": "A new location has been revealed on the map..." if chateau_revealed and not session["game_state"].get("chateau_revealed", False) else None
     }
     
     return jsonify(response_data)
