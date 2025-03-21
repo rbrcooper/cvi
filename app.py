@@ -251,7 +251,6 @@ def move():
     in_city = distance_to_city < CITY_ENTRY_THRESHOLD
     
     # Check for mysterious location
-    mysterious_location_reached = False
     chateau_revealed = False
     at_chateau = False
     
@@ -261,7 +260,9 @@ def move():
         session["game_state"]["mysterious_location_revealed"] = True
         # Only set chateau_revealed if it hasn't been set before
         
-        if not session["game_state"].get("chateau_revealed", False):
+        distance_to_mysterious = geodesic((current_lat, current_lon), MYSTERIOUS_LOCATION).kilometers
+        if not session["game_state"].get("chateau_revealed", False) and distance_to_mysterious < CITY_ENTRY_THRESHOLD:
+        # if not session["game_state"].get("chateau_revealed", False):
             session["game_state"]["chateau_revealed"] = True
             chateau_revealed = True
         
@@ -298,7 +299,6 @@ def move():
         "companions": session["game_state"]["companions"],
         "mysterious_location_revealed": session["game_state"].get("mysterious_location_revealed", False),
         "mysterious_location": MYSTERIOUS_LOCATION if session["game_state"].get("mysterious_location_revealed", False) else None,
-        "mysterious_location_reached": mysterious_location_reached,
         "chateau_revealed": chateau_revealed,
         "chateau_location": CHATEAU_LOCATION,
         "at_chateau": at_chateau,
